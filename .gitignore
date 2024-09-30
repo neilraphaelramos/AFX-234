@@ -1,0 +1,47 @@
+Type.txt
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build directories
+/build
+/dist
+/public/static
+/public/*.js
+/public/*.json
+
+# React/Next.js specific (for projects using Next.js)
+.next/
+
+# Parcel-bundler cache (if using Parcel)
+.cache/
+
+# Coverage directory used by testing tools like Jest
+coverage/
+*.lcov
+
+# Mac system files
+.DS_Store
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
