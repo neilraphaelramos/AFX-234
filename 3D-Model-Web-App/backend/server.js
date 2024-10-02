@@ -130,6 +130,51 @@ app.get('/user_accounts', verifyUser, (req, res) => {
     });
 });
 
+function generateUserId() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+
+app.post('/model_web_app_database', (req, res) => {
+    const userID = generateUserId();
+    const queryUserAccount = "INSERT INTO user_account (userid, user_name, email, pass_word, role) VALUES (?, ?, ?, ?, 'user')";
+    const queryUserInfoData = "INSERT INTO user_info_data (userid, user_name, email, created_at) VALUES (?, ?, ?, NOW())";
+    const password = req.body.password;
+
+    bcrypt.hash(password.toString(), salt, (err, hash) => {
+        if (err) {
+            console.log(err);
+        } else {
+            const valuesUserAccount = [userID, req.body.username, req.body.email, hash];
+
+            dbase.query(queryUserAccount, valuesUserAccount, (err, data) => {
+                if (err) {
+                    console.error("Database error:", err);
+                    return res.json("ERROR");
+                }
+
+                const valuesUserInfoData = [userID, req.body.username, req.body.email];
+
+                dbase.query(queryUserInfoData, valuesUserInfoData, (err, data) => {
+                    if (err) {
+                        console.error("Database error:", err);
+                        return res.json("ERROR");
+                    }
+                    console.log("User added to database");
+                    return res.json(data);
+                });
+            });
+        }
+    });
+});
+
 // Start the server
 app.listen(8081, () => {
     console.log("Listening on port 8081");
