@@ -1,0 +1,48 @@
+create DATABASE model_web_app_database;
+
+USE model_web_app_database;
+
+CREATE TABLE user_account (
+    userid BIGINT PRIMARY KEY,
+    user_name VARCHAR(50) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    pass_word VARCHAR(255) NOT NULL,
+    role ENUM('user', 'admin') DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_info_data (
+    userid BIGINT PRIMARY KEY,
+    user_name VARCHAR(50) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    first_name VARCHAR(50) NULL,
+    last_name VARCHAR(50) NULL,
+    gender ENUM('Male', 'Female') NULL,
+    birth_date DATE NULL,
+    bio TEXT NULL,
+    FOREIGN KEY (userid) REFERENCES user_account(userid) ON DELETE CASCADE
+);
+
+# Alter Table
+
+syntax:
+ALTER TABLE Table_name
+ADD COLUMN column_name column_type [constraints];
+DROP COLUMN column_name;
+MODIFY COLUMN column_name new_data_type [constraints];
+CHANGE COLUMN old_column_name new_column_name column_type [constraints];
+RENAME TO new_table_name;
+
+ADD CONSTRAINT constraint_name
+FOREIGN KEY (column_name) REFERENCES other_table(other_column);ADD CONSTRAINT 
+
+ALTER TABLE table_name
+DROP FOREIGN KEY constraint_name;  -- For foreign keys
+ALTER TABLE table_name
+DROP PRIMARY KEY;                   -- For primary keys
+
+ADD COLUMN new_column_name column_type AFTER existing_column_name;
+ENGINE = new_storage_engine;
+ALTER COLUMN column_name SET DEFAULT default_value;
+
+
