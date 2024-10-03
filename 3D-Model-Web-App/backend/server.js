@@ -31,28 +31,24 @@ dbase.connect((err) => {
 });
 
 // Login route
-app.post('/user_account', (req, res) => {
+app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
-    // Check if email and password are provided
     if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
     }
 
     const query = "SELECT * FROM user_account WHERE email = ?";
-    
-    // Query to find user by email
+
     dbase.query(query, [email], (err, data) => {
         if (err) {
             console.error("Database error:", err);
             return res.status(500).json({ message: "Database error" });
         }
 
-        // Check if user exists
         if (data.length > 0) {
             const user = data[0];
 
-            // Compare password with hashed password in database
             bcrypt.compare(password, user.pass_word, (err, isMatch) => {
                 if (err) {
                     console.error("Bcrypt error:", err);
@@ -60,18 +56,15 @@ app.post('/user_account', (req, res) => {
                 }
 
                 if (isMatch) {
-                    // Generate JWT token with user ID and role
                     const token = jwt.sign({ userid: user.userid, role: user.role }, "jwt-secret-key", { expiresIn: '1d' });
-                    
-                    // Set token as HTTP-only cookie
-                    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' }); // Secure flag for production
+                    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
                     res.json({ message: "Login successful", role: user.role, data: user });
                 } else {
-                    res.status(401).json({ message: "Invalid email or password" });
+                    res.status(401).json({ message: "Invalid email or password" }); // Ensure this is sent correctly
                 }
             });
         } else {
-            res.status(401).json({ message: "Invalid email or password" });
+            res.status(401).json({ message: "Invalid email or password" }); // Ensure this is sent correctly
         }
     });
 });
@@ -171,6 +164,35 @@ app.post('/model_web_app_database', (req, res) => {
                     return res.json(data);
                 });
             });
+        }
+    });
+});
+
+const verifyAdmin = (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ Error: "You are not authed!" });
+    }
+    jwt.verify(token, "jwt-secret-key", (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ Error: "Token is not valid" });
+        }
+        req.userid = decoded.userid; // Attach userid to request object
+        req.role = decoded.role; // Attach role to request object
+        next();
+    });
+};
+
+app.get('/admin_info', verifyAdmin, (req, res) => {
+    const query = "SELECT * FROM user_account WHERE userid = ?";
+    dbase.query(query, [1], (err, data) => {
+        if (err) {
+            return res.status(500).json({ message: "Database error" });
+        }
+        if (data.length > 0) {
+            return res.json(data[0]);
+        } else {
+            return res.status(404).json({ message: "Admin info not found" });
         }
     });
 });

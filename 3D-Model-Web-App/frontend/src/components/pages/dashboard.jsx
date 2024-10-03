@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
 
 function UserDashboard() {
     const navigate = useNavigate();
@@ -48,7 +48,6 @@ function UserDashboard() {
                 }
             })
             .catch(err => {
-            
                 setAuth(false);
                 navigate("/signin"); // Redirect on error
             });

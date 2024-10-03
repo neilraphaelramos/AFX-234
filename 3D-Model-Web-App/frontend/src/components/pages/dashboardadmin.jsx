@@ -9,7 +9,9 @@ function AdminDashboard() {
     const [auth, setAuth] = useState(false);
     const [role, setRole] = useState('');
     const [userAccounts, setUserAccounts] = useState([]);
+    const [adminInfo, setAdminInfo] = useState(null);
     const [message, setMessage] = useState('');
+    const [showModal, setShowModal] = useState(false);
 
     axios.defaults.withCredentials = true;
 
@@ -23,6 +25,19 @@ function AdminDashboard() {
             })
             .catch(err => {
                 console.error("Logout error:", err);
+            });
+    };
+
+    const fetchAdminInfo = () => {
+        axios.get('http://localhost:8081/admin_info', { withCredentials: true })
+            .then(res => {
+                console.log("Admin Info Response:", res.data);
+                setAdminInfo(res.data);
+                setShowModal(true);
+            })
+            .catch(err => {
+                console.error("Error fetching admin info:", err);
+                setMessage("Failed to fetch admin information.");
             });
     };
 
@@ -78,6 +93,10 @@ function AdminDashboard() {
                                     Options
                                 </a>
                                 <ul className="dropdown-menu">
+                                    <li>
+                                        <Link className="dropdown-item" onClick={fetchAdminInfo}>Admin User</Link>
+                                    </li>
+                                    <li><hr className="dropdown-divider" /></li>
                                     <li><Link className="dropdown-item" onClick={handleLogout}>Logout</Link></li>
                                 </ul>
                             </li>
@@ -95,7 +114,6 @@ function AdminDashboard() {
                             <th>User Name</th>
                             <th>Email</th>
                             <th>Role</th>
-                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -106,7 +124,6 @@ function AdminDashboard() {
                                     <td>{account.user_name}</td>
                                     <td>{account.email}</td>
                                     <td>{account.role}</td>
-                                    <td>{new Date(account.created_at).toLocaleString()}</td>
                                 </tr>
                             ))
                         ) : (
@@ -117,6 +134,32 @@ function AdminDashboard() {
                     </tbody>
                 </table>
             </div>
+
+            <div className={`modal ${showModal ? 'show' : ''}`} style={{ display: showModal ? 'block' : 'none' }}>
+                <div className="modal-dialog">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h5 className="modal-title">Admin User Information</h5>
+                            <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                        </div>
+                        <div className="modal-body">
+                            {adminInfo ? (
+                                <div>
+                                    <p><strong>Username:</strong> {adminInfo.user_name}</p>
+                                    <p><strong>Email:</strong> {adminInfo.email}</p>
+                                </div>
+                            ) : (
+                                <p>Loading...</p>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {showModal && <div className="modal-backdrop fade show"></div>}
         </div>
     );
 }
