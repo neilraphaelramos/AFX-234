@@ -8,6 +8,7 @@ CREATE TABLE user_account (
     email VARCHAR(50) NOT NULL,
     pass_word VARCHAR(255) NOT NULL,
     role ENUM('user', 'admin') DEFAULT 'user',
+    active_token VARCHAR(255);
 );
 
 CREATE TABLE user_info_data (

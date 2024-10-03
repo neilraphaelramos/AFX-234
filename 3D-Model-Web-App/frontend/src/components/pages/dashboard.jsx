@@ -7,11 +7,11 @@ import axios from 'axios';
 function UserDashboard() {
     const navigate = useNavigate();
     const [auth, setAuth] = useState(false);
-    const [message, setMessage] = useState('');
     const [userid, setUserid] = useState('');
-    const [email, setEmail] = useState(''); // Keep track of user email
-    const [user_name, setUserName] = useState(''); // Keep track of user name
+    const [email, setEmail] = useState('');
+    const [user_name, setUserName] = useState('');
     const [userInfo, setUserInfo] = useState({});
+    const [loading, setLoading] = useState(true);
     axios.defaults.withCredentials = true;
 
     const handleLogout = () => {
@@ -30,28 +30,39 @@ function UserDashboard() {
             });
     };
 
-    useEffect(() => {
-        // Fetch user info directly
+    const datafetch = () => {
         axios.get('http://localhost:8081/user_info', { withCredentials: true })
             .then(res => {
-                // Log the successful response
-                console.log("User Info Response:", res.data); 
-                
-                // If data is received successfully, set the user info
+                console.log("User Info Response:", res.data);
+                setLoading(false);
+
                 if (res.data) {
                     const userInfo = res.data;
                     setAuth(true);
-                    setUserid(userInfo.userid); // Assuming userid is in userInfo
-                    setEmail(userInfo.email); // Set email
-                    setUserName(userInfo.user_name); // Set user_name
-                    setUserInfo(userInfo); // Set all user info
+                    setUserid(userInfo.userid);
+                    setEmail(userInfo.email);
+                    setUserName(userInfo.user_name);
+                    setUserInfo(userInfo);
                 }
             })
             .catch(err => {
                 setAuth(false);
-                navigate("/signin"); // Redirect on error
+                navigate("/signin");
             });
+    }
+
+    useEffect(() => {
+        datafetch();
+        const interval = setInterval(() => {
+            datafetch();
+        }, 5000); // 
+
+        return () => clearInterval(interval);
     }, []);
+
+    if (loading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div>

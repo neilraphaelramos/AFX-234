@@ -31,7 +31,7 @@ const SignUpForm = () => {
         if (!validationErrors.username && !validationErrors.email && !validationErrors.password) {
             try {
                 console.log("Submitting values:", values);
-                const res = await axios.post('http://localhost:8081/model_web_app_database', values);
+                const res = await axios.post('http://localhost:8081/register', values);
                 console.log("Data account created", res.data);
                 navigate('/signin');
             } catch {

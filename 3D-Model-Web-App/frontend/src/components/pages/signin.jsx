@@ -40,7 +40,6 @@ const SignInForm = () => {
                         navigate('/admindashboard');
                     }
                 } else {
-                    // Ensure the error is captured from the response
                     setServerError(res.data.message || "Invalid email or password");
                     console.log(res.data.message); // Log for debugging
                 }

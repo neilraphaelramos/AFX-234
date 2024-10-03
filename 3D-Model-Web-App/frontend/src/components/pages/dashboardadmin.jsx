@@ -7,11 +7,11 @@ import axios from 'axios';
 function AdminDashboard() {
     const navigate = useNavigate();
     const [auth, setAuth] = useState(false);
-    const [role, setRole] = useState('');
     const [userAccounts, setUserAccounts] = useState([]);
     const [adminInfo, setAdminInfo] = useState(null);
     const [message, setMessage] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     axios.defaults.withCredentials = true;
 
@@ -20,7 +20,7 @@ function AdminDashboard() {
             .then(res => {
                 console.log("Logout response:", res.data);
                 setAuth(false);
-                setUserAccounts([]);
+                setAdminInfo([]);
                 navigate("/signin");
             })
             .catch(err => {
@@ -28,28 +28,33 @@ function AdminDashboard() {
             });
     };
 
-    const fetchAdminInfo = () => {
+    const admininfodata = () => {
         axios.get('http://localhost:8081/admin_info', { withCredentials: true })
             .then(res => {
                 console.log("Admin Info Response:", res.data);
                 setAdminInfo(res.data);
                 setShowModal(true);
+                setLoading(false);
+                setAuth(true);
             })
             .catch(err => {
                 console.error("Error fetching admin info:", err);
                 setMessage("Failed to fetch admin information.");
+                setAuth(false);
             });
+    }
+
+    const fetchAdminInfo = () => {
+        admininfodata();
     };
 
-    useEffect(() => {
-        // Fetch user accounts
+    const userdata = () => {
         axios.get('http://localhost:8081/user_accounts', { withCredentials: true })
             .then(res => {
                 console.log("User Accounts Response:", res.data);
                 if (res.data.authenticated) {
-                    setAuth(true);
-                    setRole(res.data.role);
                     setUserAccounts(res.data.accounts);
+                    setLoading(false);
                 } else {
                     navigate("/signin");
                 }
@@ -59,13 +64,26 @@ function AdminDashboard() {
                 setMessage("Failed to fetch user accounts.");
                 navigate("/signin");
             });
+    }
+
+    useEffect(() => {
+        userdata();
+        const interval = setInterval(() => {
+            userdata();;
+        }, 5000); // 
+
+        return () => clearInterval(interval);
     }, []);
+
+    if (loading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div>
             <nav className="navbar navbar-expand-lg bg-body-tertiary">
                 <div className="container-fluid">
-                    <Link className="navbar-brand" to="/">Admin Dashboard</Link>
+                    <Link className="navbar-brand" to="/admindashboard">Admin Dashboard</Link>
                     <button
                         className="navbar-toggler"
                         type="button"
@@ -80,7 +98,7 @@ function AdminDashboard() {
                     <div className="collapse navbar-collapse" id="navbarSupportedContent">
                         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                             <li className="nav-item">
-                                <Link className="nav-link active" aria-current="page" to="/dashboard">Home</Link>
+                                <Link className="nav-link active" aria-current="page" to="">Home</Link>
                             </li>
                             <li className="nav-item dropdown">
                                 <a
@@ -147,6 +165,7 @@ function AdminDashboard() {
                                 <div>
                                     <p><strong>Username:</strong> {adminInfo.user_name}</p>
                                     <p><strong>Email:</strong> {adminInfo.email}</p>
+                                    <p><strong>Authentication Status:</strong> {auth ? 'Authenticated' : 'Not Auth'}</p>
                                 </div>
                             ) : (
                                 <p>Loading...</p>

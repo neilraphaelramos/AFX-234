@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+require('dotenv').config(); // Load environment variables
 
 const app = express();
 app.use(cors({
@@ -56,38 +57,97 @@ app.post('/login', (req, res) => {
                 }
 
                 if (isMatch) {
-                    const token = jwt.sign({ userid: user.userid, role: user.role }, "jwt-secret-key", { expiresIn: '1d' });
-                    res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
-                    res.json({ message: "Login successful", role: user.role, data: user });
+                    // Generate new JWT token
+                    const token = jwt.sign({ userid: user.userid, role: user.role }, process.env.JWT_SECRET || "jwt-secret-key", { expiresIn: '1d' });
+
+                    // Update the user's active token in the database, replacing any previous session
+                    const updateTokenQuery = "UPDATE user_account SET active_token = ? WHERE userid = ?";
+                    dbase.query(updateTokenQuery, [token, user.userid], (err) => {
+                        if (err) {
+                            console.error("Database error updating token:", err);
+                            return res.status(500).json({ message: "Database error" });
+                        }
+
+                        // Set cookie with the new token
+                        res.cookie('token', token, {
+                            httpOnly: true,
+                            secure: process.env.NODE_ENV === 'production',
+                            sameSite: 'strict',
+                        });
+
+                        return res.json({ message: "Login successful", role: user.role, data: user });
+                    });
                 } else {
-                    res.status(401).json({ message: "Invalid email or password" }); // Ensure this is sent correctly
+                    return res.status(401).json({ message: "Invalid email or password" });
                 }
             });
         } else {
-            res.status(401).json({ message: "Invalid email or password" }); // Ensure this is sent correctly
+            return res.status(401).json({ message: "Invalid email or password" });
         }
     });
 });
 
 // Logout route
 app.post('/logout', (req, res) => {
-    res.clearCookie('token'); // Clear the JWT cookie
-    res.json({ message: "Logged out successfully" });
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(400).json({ message: "No active session" });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET || "jwt-secret-key", (err, decoded) => {
+        if (err) {
+            return res.status(400).json({ message: "Invalid token" });
+        }
+
+        const query = "UPDATE user_account SET active_token = NULL WHERE userid = ?";
+        dbase.query(query, [decoded.userid], (err) => {
+            if (err) {
+                return res.status(500).json({ message: "Database error" });
+            }
+
+            res.clearCookie('token');
+            res.json({ message: "Logged out successfully" });
+        });
+    });
 });
+
+
 
 // Middleware to verify the JWT token
 const verifyUser = (req, res, next) => {
     const token = req.cookies.token;
+
     if (!token) {
-        return res.status(401).json({ Error: "You are not authed!" });
+        return res.status(401).json({ Error: "You are not authenticated!" });
     }
-    jwt.verify(token, "jwt-secret-key", (err, decoded) => {
+
+    jwt.verify(token, process.env.JWT_SECRET || "jwt-secret-key", (err, decoded) => {
         if (err) {
             return res.status(401).json({ Error: "Token is not valid" });
         }
-        req.userid = decoded.userid; // Attach userid to request object
-        req.role = decoded.role; // Attach role to request object
-        next();
+
+        const query = "SELECT active_token FROM user_account WHERE userid = ?";
+        dbase.query(query, [decoded.userid], (err, data) => {
+            if (err) {
+                return res.status(500).json({ message: "Database error" });
+            }
+
+            if (data.length > 0) {
+                const storedToken = data[0].active_token;
+
+                // Compare the stored token with the token in the current request
+                if (storedToken === token) {
+                    req.userid = decoded.userid;
+                    req.role = decoded.role;
+                    next(); // Continue to the next middleware or route
+                } else {
+                    return res.status(401).json({ Error: "Session has expired, please login again" });
+                }
+            } else {
+                return res.status(401).json({ message: "User not found" });
+            }
+        });
     });
 };
 
@@ -108,21 +168,21 @@ app.get('/user_info', verifyUser, (req, res) => {
 
 // Route to get all user accounts (admin only)
 app.get('/user_accounts', verifyUser, (req, res) => {
-    // Check if the user has admin role
     if (req.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
     }
 
-    const query = "SELECT * FROM user_account WHERE userid <> 1"; // Fetch all user accounts
+    const query = "SELECT * FROM user_account WHERE userid <> 1";
     dbase.query(query, (err, data) => {
         if (err) {
             console.error("Database error:", err);
-            return res.status(500).json({ message: "Database error", error: err });
+            return res.status(500).json({ message: "Internal server error" });
         }
         return res.json({ authenticated: true, role: req.role, accounts: data });
     });
 });
 
+// Generate User ID (no changes here)
 function generateUserId() {
     const date = new Date();
     const year = date.getFullYear();
@@ -135,22 +195,25 @@ function generateUserId() {
     return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
-app.post('/model_web_app_database', (req, res) => {
+// Route to register a user
+app.post('/register', (req, res) => {
     const userID = generateUserId();
     const queryUserAccount = "INSERT INTO user_account (userid, user_name, email, pass_word, role) VALUES (?, ?, ?, ?, 'user')";
     const queryUserInfoData = "INSERT INTO user_info_data (userid, user_name, email, created_at) VALUES (?, ?, ?, NOW())";
     const password = req.body.password;
 
-    bcrypt.hash(password.toString(), salt, (err, hash) => {
+    const saltRounds = 10;
+    bcrypt.hash(password.toString(), saltRounds, (err, hash) => {
         if (err) {
             console.log(err);
+            return res.status(500).json({ message: "Error hashing password" });
         } else {
             const valuesUserAccount = [userID, req.body.username, req.body.email, hash];
 
             dbase.query(queryUserAccount, valuesUserAccount, (err, data) => {
                 if (err) {
                     console.error("Database error:", err);
-                    return res.json("ERROR");
+                    return res.status(500).json({ message: "Internal server error" });
                 }
 
                 const valuesUserInfoData = [userID, req.body.username, req.body.email];
@@ -158,22 +221,23 @@ app.post('/model_web_app_database', (req, res) => {
                 dbase.query(queryUserInfoData, valuesUserInfoData, (err, data) => {
                     if (err) {
                         console.error("Database error:", err);
-                        return res.json("ERROR");
+                        return res.status(500).json({ message: "Internal server error" });
                     }
                     console.log("User added to database");
-                    return res.json(data);
+                    return res.json({ message: "User added successfully", data });
                 });
             });
         }
     });
 });
 
+// Verify Admin Middleware (Same as before)
 const verifyAdmin = (req, res, next) => {
     const token = req.cookies.token;
     if (!token) {
         return res.status(401).json({ Error: "You are not authed!" });
     }
-    jwt.verify(token, "jwt-secret-key", (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET || "jwt-secret-key", (err, decoded) => {
         if (err) {
             return res.status(401).json({ Error: "Token is not valid" });
         }
@@ -183,6 +247,7 @@ const verifyAdmin = (req, res, next) => {
     });
 };
 
+// Admin Info Route (Same as before)
 app.get('/admin_info', verifyAdmin, (req, res) => {
     const query = "SELECT * FROM user_account WHERE userid = ?";
     dbase.query(query, [1], (err, data) => {
